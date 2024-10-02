@@ -1,0 +1,96 @@
+title <size:30>Standalone GSMA Open Gateway - OpenID Connect (OIDC) Authorization Code Flow using Signed Request Object</size>
+
+
+autonumber
+bottomparticipants
+
+participantgroup #B0E3E6 **Operator Z\nSIM Card**
+
+participant "Application\nFrontend" as API_CONSUMER_FE
+end
+
+participant "Application\nBackend" as API_CONSUMER_BE
+
+participantgroup #B0E3E6 **GSMA Open Gateway - Operator Z**
+participant "API Gateway" as OP_Z_APIGW
+lifelinestyle OP_Z_APIGW :2
+
+participant #82B366 "Network\nAuth Service" as OP_Z_AUTHSVC #D5E8D4
+participant #6C8EBF "Service APIs\n[CAMARA]" as OP_Z_SVC_API #DAE8FC
+
+
+end
+
+note over API_CONSUMER_BE, OP_Z_APIGW:**Onboarding:**\nOperater Z registers Application Backend\n• jwks_uri\n• redirect_uris
+
+
+expandable+ #lightgrey Perform OpenID Connect Discovery
+API_CONSUMER_BE->OP_Z_APIGW:GET /.well-known/openid-configuration HTTP/1.1\nHost: https://auth-operator-z.com\n
+
+OP_Z_APIGW-->API_CONSUMER_BE:HTTP/1.1 200 OK\nContent-Type: application/json\n\n(openid-configuration)
+end
+
+API_CONSUMER_FE->API_CONSUMER_BE:Verify the mobile phone number
+
+API_CONSUMER_BE->API_CONSUMER_BE:Prepare Signed Request Object
+
+note right of API_CONSUMER_BE:**Request Object JWT:**\n• iss = Application Backend client_id\n• aud = https://auth.operator-z.com\n• response_type = code\n• client_id = Application Backend client_id\n• redirect_uri = https://application-backend.com/call-back\n• scope = number-verification:verify\n• purpose = dpv:FraudPreventionAndDetection\n• state\n• nonce\n• max_age\n• prompt = none\n• jti\n• exp\n• iat\n• nbf
+
+
+API_CONSUMER_BE-->API_CONSUMER_FE:HTTP/1.1 302 Found\nLocation: https://auth.operator-z.com/authorize?\n \nLocation Query String:\n• client_id\n• request
+
+API_CONSUMER_FE->API_CONSUMER_FE:Follow 302 Redirect
+
+API_CONSUMER_FE-#green:2>OP_Z_AUTHSVC:<color:#63349C>**GET /authorize? HTTP/1.1\nHost: auth.operator-z.com\n\nQuery String:\n• client_id\n• request**</color>
+
+expandable+ #lightgrey Verify JWT Signature
+
+OP_Z_AUTHSVC->OP_Z_AUTHSVC:Inspect request object\nfor the client_id under iss to resolve the jwks endpoint
+
+OP_Z_AUTHSVC->API_CONSUMER_BE:GET /.well-known/jwks.json HTTP/1.1\nHost: https://application-backend.com
+API_CONSUMER_BE-->OP_Z_AUTHSVC:HTTP/1.1 200 OK\nContent-Type: application/jwk-set+json\n\n(jwks.json)
+end
+
+OP_Z_AUTHSVC->OP_Z_AUTHSVC:Authenticate user's mobile\nphone number\n(Network-based Authentication)
+
+note right of OP_Z_AUTHSVC:**Consent Management:**\nPerform consent check and/or request using\nmobile phone number to retrieve customer\nprofile.
+
+OP_Z_AUTHSVC--#green:2>API_CONSUMER_FE:<color:#63349C>**HTTP/1.1 302 Found\n Location: https://application-backend.com/call-back?\n\nLocation Query String:\n• code=operator_z_auth_code\n• state**</color>
+
+API_CONSUMER_FE->API_CONSUMER_FE: Follow 302 Redirect
+API_CONSUMER_FE->API_CONSUMER_BE:GET /call-back?code=operator_z_auth_code&state=state\nHost: https://application-backend.com
+
+
+note over API_CONSUMER_BE, OP_Z_APIGW:**Authenticate against Operator Z using:**\n• Private Key JWT\n• Published ".well-known/jwks.json"
+
+API_CONSUMER_BE-#green:2>OP_Z_APIGW:<color:#63349C>**POST /token HTTP/1.1\nHost: auth.operator-z.com\nContent-Type: application/x-www-form-urlencoded \n\nRequest Parameters:\n• grant_type = authorization_code\n• code = operator_z_auth_code\n• redirect_uri = https://application-backend.com/call-back\n• client_assertion_type = urn:ietf:params:oauth:client-assertion-type:jwt-bearer\n• client_assertion = <Application Backend's private_key_jwt>**</color>
+
+expandable+ #lightgrey Verify JWT Signature
+
+OP_Z_APIGW->OP_Z_APIGW:Inspect <Application Backend's private_key_jwt> for\nthe client_id under iss to resolve the jwks endpoint
+
+
+OP_Z_APIGW->API_CONSUMER_BE:GET /.well-known/jwks.json HTTP/1.1\nHost: https://application-backend.com
+
+API_CONSUMER_BE-->OP_Z_APIGW:HTTP/1.1 200 OK\nContent-Type: application/jwk-set+json\n\n(jwks.json)
+
+end
+
+OP_Z_APIGW->OP_Z_AUTHSVC:
+OP_Z_AUTHSVC->OP_Z_AUTHSVC:Generate Access Token bound to\nauthenticated mobile phone number
+OP_Z_AUTHSVC-->OP_Z_APIGW:(access_token)
+OP_Z_APIGW--#green:2>API_CONSUMER_BE:<color:#63349C>**HTTP/1.1 200 OK\nContent-Type: application/json\nCache-Control: no-store\n\nResponse Parameters:\n• access_token\n• token_type = Bearer\n• refresh_token\n• expires_in\n• id_token**</color>
+group #blue Phone number verify case #white
+
+API_CONSUMER_BE-#3A66FB:2>OP_Z_APIGW:**POST /number-verification/v0/verify\nAuthorization: Bearer access_token\n\nRequest Parameters:\n• phoneNumber**
+
+OP_Z_APIGW-#3A66FB:2>OP_Z_SVC_API:
+OP_Z_SVC_API->OP_Z_SVC_API:Retrieve mobile phone number\nassociated with the access_token
+OP_Z_SVC_API->OP_Z_SVC_API:Validate mobile phone number\nagainst phoneNumber from\nrequest payload
+OP_Z_SVC_API--#3A66FB:2>OP_Z_APIGW:HTTP/1.1 200 OK\ndevicePhoneNumberVerified = true/false
+OP_Z_APIGW--#3A66FB:2>API_CONSUMER_BE:
+
+
+end
+
+API_CONSUMER_BE-->API_CONSUMER_FE:(result)

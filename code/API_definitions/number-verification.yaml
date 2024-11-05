@@ -9,18 +9,28 @@ info:
 
     # Introduction
 
-    Number Verification API performs real-time checks to verify the phone number of the mobile device being used to access a service provider (SP) service, where the mobile device is accessing the *service provider* over a mobile network (WiFi connections are out of this API scope) either by getting the comparison result or receiving the phone number of the device that it is used, so they can verify it themselves.
+    Number Verification API performs real-time checks to verify the phone number of the mobile device being used to access a service provider (SP) service.
+    If the mobile device is accessing the *service provider* over a mobile network either by getting the comparison result or receiving the phone number of the device that it is used, so they can verify it themselves.
+    If the mobile device is accessing the *service provider* over a non-mobile network like e.g. WiFi then the API consumer needs to provide an operator token as the value of the OIDC authorization code flow parameter `login_hint`.
+    Please see the CAMARA-Security-Interoperability.md on the format of the login_hint value for operator tokens.
 
-    It uses direct mobile network connections to verify possession of a phone number in the background without requiring user interaction. There are neither OTPs (One-time passwords) received by SMS nor authenticator app downloads, so it is much simpler. It can be used at sign up, login, or transaction time to validate that a user's SIM (Subscriber Identity Module) is both actively connected to the mobile network and not spoofed or cloned.
+    How an operator token is obtained is outside the scope.
+
+    The NumberVerification API verifes possession of a phone number in the background without requiring user interaction.
+    There are neither OTPs (One-time passwords) received by SMS nor authenticator app downloads, so it is much simpler.
+    It can be used at sign up, login, or transaction time to validate that a user's SIM (Subscriber Identity Module) is both actively connected to the mobile network and not spoofed or cloned.
 
 
     # Relevant Definitions and Concepts
 
     - **Network-Based Authentication**: Authentication mechanism based on the identification of the endpoint of a network connection. Network operators know to which subscriber a network resource is assigned at a given moment, for example the mobile phone number associated to a specific mobile network connection.
 
+    - **Operator Token**: Authentication mechanism based on [EAP-AKA](https://datatracker.ietf.org/doc/html/rfc5448).
+
     # API Functionality
 
-    This enables a Service Provider (SP) to verify the phone number of the mobile device being used to access their service where the mobile device is accessing the *service provider* over a mobile network (WiFi connections are out of this API scope). This can happen either by getting the comparison result or receiving the phone number of the device that is used, so they can verify it themselves.
+    This enables a Service Provider (SP) to verify the phone number of the mobile device being used to access their service.
+    This can happen either by getting the comparison result or receiving the phone number of the device that is used, so they can verify it themselves.
 
     # Resources and Operations overview
     This API currently provides two endpoints where both require a **3-legged token** and authentication via **mobile network** (**excluding** for example by SMS/OTP or user/password as an authentication method):
@@ -36,7 +46,8 @@ info:
 
     **Additional details:**
 
-    - **(1):** Authentication must be automatic without any user interactions. Authentication methods such as SMS OTP or user/password are incompatible, as the goal is to validate the mobile phone number that is accessing the App. So it is required to be authentication via mobile network and without the user being involved. the use of parameter prompt=none, as described in **[OIDC Connect](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)**, ensures no user interaction.
+    - **(1):** Authentication must be automatic without any user interactions. Authentication methods such as SMS OTP or user/password are incompatible, as the goal is to validate the mobile phone number that is accessing the App.
+    So it is required to be authentication without the user being involved. The use of parameter prompt=none, as described in **[OIDC Connect](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)**, ensures no user interaction.
 
     - **(2):** The way in which the phone_number is retrieved depends on the implementation. For example, access token may be a self contained encrypted JWT, so API can decrypt and identify phone_number. Some other implementations might request the phone_number associated to the token from Authserver.
 
@@ -46,12 +57,19 @@ info:
 
     Which specific authorization flows are to be used will be determined during onboarding process, happening between the API Client and the Telco Operator exposing the API, taking into account the declared purpose for accessing the API, while also being subject to the prevailing legal framework dictated by local legislation.
 
-    It is important to remark that in cases where personal user data is processed by the API, and users can exercise their rights through mechanisms such as opt-in and/or opt-out, the use of 3-legged access tokens becomes mandatory. This measure ensures that the API remains in strict compliance with user privacy preferences and regulatory obligations, upholding the principles of transparency and user-centric data control.
+    It is important to remark that in cases where personal user data is processed by the API, and users can exercise their rights through mechanisms such as opt-in and/or opt-out, the use of 3-legged access tokens becomes mandatory.
+    This measure ensures that the API remains in strict compliance with user privacy preferences and regulatory obligations, upholding the principles of transparency and user-centric data control.
 
-    In the case of the Number Verification API scenario and according to the API definition, 3-legged access tokens must be used by API clients to invoke this API with dedicated scope. The API client must authenticate on behalf of a specific user to use this service. This must be done via mobile network authentication.
+    In the case of the Number Verification API scenario and according to the API definition, 3-legged access tokens must be used by API clients to invoke this API with dedicated scope.
+    The API client must authenticate on behalf of a specific user to use this service.
 
     # Further info and support
-    [GSMA Mobile Connect Verified MSISDN specification](https://www.gsma.com/identity/wp-content/uploads/2022/12/IDY.54-Mobile-Connect-Verified-MSISDN-Definition-and-Technical-Requirements-1.0.pdf) was used as source of input for this API.  For more about Mobile Connect, please see [Mobile Connect website](https://mobileconnect.io/).
+    [GSMA Mobile Connect Verified MSISDN specification](https://www.gsma.com/identity/wp-content/uploads/2022/12/IDY.54-Mobile-Connect-Verified-MSISDN-Definition-and-Technical-Requirements-1.0.pdf) was used as source of input for this API.
+    For more about Mobile Connect, please see [Mobile Connect website](https://mobileconnect.io/).
+
+    [Operator Token TS.43 Service Entitlement Configuration](https://www.gsma.com/newsroom/gsma_resources/ts-43-service-entitlement-configuration/)
+    [Operator Token Authorisation Sever – Authenticator Capabilities Group](https://www.gsma.com/newsroom/gsma_resources/asac-01-v1-0/)
+
   version: 1.0.0
   x-camara-commonalities: 0.4.0
   license:
